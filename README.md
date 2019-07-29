@@ -19,7 +19,7 @@ python mnist_mlp.py -o train_mnist_ternary -p ternary --relu #with relu
 To train full-precision MNIST:
 
 ```
-python mnist_mlp.py -o train_mnist_ternary -p float
+python mnist_mlp.py -o train_mnist_float -p float
 ```
 
 To evaluate performances and check loss/accuracy history:
