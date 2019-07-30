@@ -25,5 +25,5 @@ python mnist_mlp.py -o train_mnist_float -p float
 To evaluate performances and check loss/accuracy history:
 
 ```
-python eval_mnist.py <TRAININGDIR>
+python eval_mnist.py -o <TRAININGDIR>
 ```
