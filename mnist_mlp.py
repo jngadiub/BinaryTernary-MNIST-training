@@ -68,7 +68,7 @@ H = 1.0
 kernel_lr_multiplier = 1.0
 
 # network
-num_unit = 256
+num_unit = 512
 num_hidden = 3
 use_bias = False
 

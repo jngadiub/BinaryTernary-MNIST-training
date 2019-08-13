@@ -9,11 +9,16 @@ from keras.datasets import mnist
 from keras.utils import np_utils
 from keras.models import load_model
 
-from binary_layers import BinaryDense, Clip
+from binary_layers import BinaryDense, Clip, DropoutNoScaleForBinary
 from binary_ops import binary_tanh as binary_tanh_op
+
+from ternary_layers import TernaryDense, DropoutNoScaleForTernary
+from ternary_ops import ternarize
 
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix
+
+from optparse import OptionParser
 
 def _byteify(data, ignore_dicts = False):
     # if this is a unicode string, return its string representation
@@ -80,13 +85,26 @@ class DropoutNoScale(Dropout):
 def binary_tanh(x):
     return binary_tanh_op(x)
 
-outdir = str(sys.argv[1])
+def ternary_tanh(x):
+    x = K.clip(x, -1, 1)
+    return ternarize(x)
+
+parser = OptionParser()
+parser.add_option('-o','--output',action='store',type='string',dest='outputDir',default='train_mnist/',help='output directory')
+parser.add_option('--checkHLS','--checkHLS',action='store',type='string',dest='checkHLS',default='', help='file with HLS output')
+(options,args) = parser.parse_args()
+
+outdir = options.outputDir
 model_file = outdir+'/KERAS_check_best_model.h5'
 model = load_model(model_file, custom_objects={
                    'DropoutNoScale':DropoutNoScale,
-                       'BinaryDense': BinaryDense,
-                       'binary_tanh': binary_tanh,
-                       'Clip': Clip})
+                   'DropoutNoScaleForBinary':DropoutNoScaleForBinary,
+                   'DropoutNoScaleForTernary':DropoutNoScaleForTernary,
+                   'BinaryDense': BinaryDense,
+                   'TernaryDense': BinaryDense,
+                   'binary_tanh': binary_tanh,
+                   'ternary_tanh': binary_tanh,
+                   'Clip': Clip})
 
 (X_train, y_train), (X_test, y_test) = mnist.load_data()
 
@@ -106,8 +124,14 @@ Y_train = np_utils.to_categorical(y_train, nb_classes) * 2 - 1 # -1 or 1 for hin
 Y_test = np_utils.to_categorical(y_test, nb_classes) * 2 - 1
 
 score = model.evaluate(X_test, Y_test, verbose=0)
-print 'Test score:', score[0]
-print 'Test accuracy:', score[1]
+print 'Keras test score:', score[0]
+print 'Keras test accuracy:', score[1]
+
+if options.checkHLS != '':
+ Y_hls = np.loadtxt(options.checkHLS)
+ score = model.evaluate(X_test, Y_hls, verbose=0)
+ print 'HLS test score:', score[0]
+ print 'HLS test accuracy:', score[1]
 
 outfile_name = model_file.replace('.h5','_truth_labels.dat')
 print "Writing",Y_test.shape[1],"predicted labels for",Y_test.shape[0],"events in outfile",outfile_name
