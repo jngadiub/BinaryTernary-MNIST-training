@@ -1,0 +1,9 @@
+OutputDir: test_compression_yaml
+KerasModel: float_model_hinge_batchnorm
+KerasModelRetrain: float_model_hinge_batchnorm_constraint
+Constraints: test_prune/pruned_model_drop_weights.h5
+Neurons: 128
+Layers: 3
+KerasLoss: squared_hinge
+L1Reg: 0.0001
+Epochs: 100

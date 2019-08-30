@@ -1,0 +1,7 @@
+OutputDir: train_binary_model_relu
+KerasModel: binary_model_relu
+Neurons: 128
+Layers: 3
+KerasLoss: squared_hinge
+L1Reg: 0
+Epochs: 100

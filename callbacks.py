@@ -6,7 +6,7 @@ Created on 7 Apr 2017
 from __future__ import print_function
 
 
-from keras.callbacks import Callback, EarlyStopping,History,ModelCheckpoint,TensorBoard,ReduceLROnPlateau
+from keras.callbacks import Callback, EarlyStopping,History,ModelCheckpoint,TensorBoard,ReduceLROnPlateau,TerminateOnNaN
 # loss per epoch
 from time import time
 from pdb import set_trace
@@ -85,6 +85,8 @@ class all_callbacks(object):
         self.reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=lr_factor, patience=lr_patience, 
                                 mode='min', verbose=1, epsilon=lr_epsilon,
                                  cooldown=lr_cooldown, min_lr=lr_minimum)
+                                 
+        self.terminate_nan = TerminateOnNaN()
 
         self.modelbestcheck=ModelCheckpoint(outputDir+"/KERAS_check_best_model.h5", 
                                         monitor='val_loss', verbose=1, 

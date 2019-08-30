@@ -1,0 +1,7 @@
+OutputDir: train_float_model_hinge
+KerasModel: float_model_hinge
+Neurons: 128
+Layers: 3
+KerasLoss: squared_hinge
+L1Reg: 0
+Epochs: 100

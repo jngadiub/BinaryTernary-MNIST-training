@@ -9,16 +9,22 @@ from keras.datasets import mnist
 from keras.utils import np_utils
 from keras.models import load_model
 
-from binary_layers import BinaryDense, Clip, DropoutNoScaleForBinary
+from binary_layers import BinaryDense, Clip, DropoutNoScaleForBinary, DropoutNoScale
 from binary_ops import binary_tanh as binary_tanh_op
 
 from ternary_layers import TernaryDense, DropoutNoScaleForTernary
 from ternary_ops import ternarize
 
 import matplotlib.pyplot as plt
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, roc_curve, auc
+import pandas as pd
 
 from optparse import OptionParser
+
+from constraints import ZeroSomeWeights
+from sklearn.metrics import accuracy_score
+
+from mnist_mlp import relu1
 
 def _byteify(data, ignore_dicts = False):
     # if this is a unicode string, return its string representation
@@ -36,6 +42,43 @@ def _byteify(data, ignore_dicts = False):
     }
     # if it's anything else, return it in its original form
     return data
+
+def makeRoc(features_val, labels, labels_val, model, outputDir, predict_hls = [], suffix=''):
+
+    if len(predict_hls) == 0: predict_test = model.predict(features_val)
+    else: predict_test = predict_hls
+    
+    df = pd.DataFrame()
+    
+    fpr = {}
+    tpr = {}
+    auc1 = {}
+    
+    plt.figure()
+    for i, label in enumerate(labels):
+        df[label] = labels_val[:,i]
+        df[label + '_pred'] = predict_test[:,i]
+        
+        fpr[label], tpr[label], threshold = roc_curve(df[label],df[label+'_pred'])
+        
+        auc1[label] = auc(fpr[label], tpr[label])
+        
+        #plt.plot(tpr[label],fpr[label],label='%s, AUC = %.1f%%'%(label,auc1[label]*100.))
+        plt.plot(fpr[label],tpr[label],label='%s, AUC = %.1f%%'%(label,auc1[label]*100.))
+
+    #plt.semilogy()
+    #plt.xlabel("Signal Efficiency")
+    #plt.ylabel("Background Efficiency")
+    plt.xlabel("False positive rate")
+    plt.ylabel("True positive rate")
+    plt.ylim(0.9,1.01)
+    plt.grid(True)
+    plt.legend(loc='lower right')
+    plt.figtext(0.24, 0.90,'hls4ml',fontweight='bold', wrap=True, horizontalalignment='right', fontsize=14)
+    #plt.figtext(0.35, 0.90,'preliminary', style='italic', wrap=True, horizontalalignment='center', fontsize=14)
+    plt.figtext(0.9, 0.9,options.label, wrap=True, horizontalalignment='right', fontsize=12)
+    plt.savefig('%s/ROC%s.png'%(outputDir,suffix))
+    return predict_test
 
 def plot_confusion_matrix(cm, classes,
                           normalize=False,
@@ -68,20 +111,6 @@ def plot_confusion_matrix(cm, classes,
     plt.ylabel('True label')
     plt.xlabel('Predicted label')
 
-class DropoutNoScale(Dropout):
-    '''Keras Dropout does scale the input in training phase, which is undesirable here.
-        '''
-    def call(self, inputs, training=None):
-        if 0. < self.rate < 1.:
-            noise_shape = self._get_noise_shape(inputs)
-            
-            def dropped_inputs():
-                return K.dropout(inputs, self.rate, noise_shape,
-                                 seed=self.seed) * (1 - self.rate)
-            return K.in_train_phase(dropped_inputs, inputs,
-                                    training=training)
-        return inputs
-
 def binary_tanh(x):
     return binary_tanh_op(x)
 
@@ -91,17 +120,21 @@ def ternary_tanh(x):
 
 parser = OptionParser()
 parser.add_option('-o','--output',action='store',type='string',dest='outputDir',default='train_mnist/',help='output directory')
+parser.add_option('-l','--label',action='store',type='string',dest='label',default='Binary MNIST-128',help='label for plots')
+parser.add_option('-c','--convert',action='store_true',dest='convert',default=False, help='convert data to txt')
 parser.add_option('--checkHLS','--checkHLS',action='store',type='string',dest='checkHLS',default='', help='file with HLS output')
 (options,args) = parser.parse_args()
 
 outdir = options.outputDir
 model_file = outdir+'/KERAS_check_best_model.h5'
 model = load_model(model_file, custom_objects={
+                   'relu1': relu1,
+                   'ZeroSomeWeights' : ZeroSomeWeights,
                    'DropoutNoScale':DropoutNoScale,
                    'DropoutNoScaleForBinary':DropoutNoScaleForBinary,
                    'DropoutNoScaleForTernary':DropoutNoScaleForTernary,
                    'BinaryDense': BinaryDense,
-                   'TernaryDense': BinaryDense,
+                   'TernaryDense': TernaryDense,
                    'binary_tanh': binary_tanh,
                    'ternary_tanh': binary_tanh,
                    'Clip': Clip})
@@ -127,58 +160,84 @@ score = model.evaluate(X_test, Y_test, verbose=0)
 print 'Keras test score:', score[0]
 print 'Keras test accuracy:', score[1]
 
-if options.checkHLS != '':
- Y_hls = np.loadtxt(options.checkHLS)
- score = model.evaluate(X_test, Y_hls, verbose=0)
- print 'HLS test score:', score[0]
- print 'HLS test accuracy:', score[1]
-
-outfile_name = model_file.replace('.h5','_truth_labels.dat')
-print "Writing",Y_test.shape[1],"predicted labels for",Y_test.shape[0],"events in outfile",outfile_name
-outfile = open(outfile_name,'w')
-for e in range(Y_test.shape[0]):
- line=''
- for l in range(Y_test.shape[1]): line+=(str(Y_test[e][l])+' ')
- outfile.write(line+'\n')
-outfile.close()
-
-outfile_name = model_file.replace('.h5','_input_features.dat')
-print "Writing",X_test.shape[1],"input features for",X_test.shape[0],"events in outfile",outfile_name
-outfile = open(outfile_name,'w')
-for e in range(X_test.shape[0]):
- line=''
- for l in range(X_test.shape[1]): line+=(str(X_test[e][l])+' ')
- outfile.write(line+'\n')
-outfile.close()
-
-Y_predict = model.predict(X_test)
-outfile_name = model_file.replace('.h5','_predictions.dat')
-print "Writing",Y_predict.shape[1],"predictions for",Y_predict.shape[0],"events in outfile",outfile_name
-outfile = open(outfile_name,'w')
-for e in range(Y_predict.shape[0]):
- line=''
- for l in range(Y_predict.shape[1]): line+=(str(Y_predict[e][l])+' ')
- outfile.write(line+'\n')
-outfile.close()
-
 labels = ['zero','one','two','three','four','five','six','seven','eight','nine']
+
+Y_predict = makeRoc(X_test, labels, Y_test, model, outdir)
+
+if options.convert:
+ outfile_name = model_file.replace('.h5','_truth_labels.dat')
+ print "Writing",Y_test.shape[1],"predicted labels for",Y_test.shape[0],"events in outfile",outfile_name
+ outfile = open(outfile_name,'w')
+ for e in range(Y_test.shape[0]):
+  line=''
+  for l in range(Y_test.shape[1]): line+=(str(Y_test[e][l])+' ')
+  outfile.write(line+'\n')
+ outfile.close()
+
+ outfile_name = model_file.replace('.h5','_input_features.dat')
+ print "Writing",X_test.shape[1],"input features for",X_test.shape[0],"events in outfile",outfile_name
+ outfile = open(outfile_name,'w')
+ for e in range(X_test.shape[0]):
+  line=''
+  for l in range(X_test.shape[1]): line+=(str(X_test[e][l])+' ')
+  outfile.write(line+'\n')
+ outfile.close()
+
+ outfile_name = model_file.replace('.h5','_predictions.dat')
+ print "Writing",Y_predict.shape[1],"predictions for",Y_predict.shape[0],"events in outfile",outfile_name
+ outfile = open(outfile_name,'w')
+ for e in range(Y_predict.shape[0]):
+  line=''
+  for l in range(Y_predict.shape[1]): line+=(str(Y_predict[e][l])+' ')
+  outfile.write(line+'\n')
+ outfile.close()
+
 y_test_proba = Y_test.argmax(axis=1)
 y_predict_proba = Y_predict.argmax(axis=1)
 cnf_matrix = confusion_matrix(y_test_proba, y_predict_proba)
 np.set_printoptions(precision=2)
-# Plot non-normalized confusion matrix
+
 plt.figure()
 plot_confusion_matrix(cnf_matrix, classes=[l for l in labels],title='Confusion matrix')
-plt.figtext(0.28, 0.90,'MNIST',fontweight='bold', wrap=True, horizontalalignment='right', fontsize=14)
+plt.figtext(0.28, 0.90,'hls4ml',fontweight='bold', wrap=True, horizontalalignment='right', fontsize=14)
+plt.figtext(0.75, 0.9,options.label, wrap=True, horizontalalignment='right', fontsize=12)
 #plt.figtext(0.38, 0.90,'preliminary', style='italic', wrap=True, horizontalalignment='center', fontsize=14)
 plt.savefig(outdir+"/confusion_matrix.png")
-# Plot normalized confusion matrix
+
 plt.figure()
 plot_confusion_matrix(cnf_matrix, classes=[l for l in labels], normalize=True,title='Normalized confusion matrix')
-                          
-plt.figtext(0.28, 0.90,'MNIST',fontweight='bold', wrap=True, horizontalalignment='right', fontsize=14)
+plt.figtext(0.28, 0.90,'hls4ml',fontweight='bold', wrap=True, horizontalalignment='right', fontsize=14)
+plt.figtext(0.75, 0.9,options.label, wrap=True, horizontalalignment='right', fontsize=12)
 #plt.figtext(0.38, 0.90,'preliminary', style='italic', wrap=True, horizontalalignment='center', fontsize=14)
 plt.savefig(outdir+"/confusion_matrix_norm.png")
+
+if options.checkHLS != '':
+    
+    Y_hls = np.loadtxt(options.checkHLS)
+    score = model.evaluate(X_test, Y_hls, verbose=0)
+    print 'HLS test score:', score[0]
+    print 'HLS test accuracy:', score[1]
+    #print 'HLS test accuracty (scikit-learn):',accuracy_score(Y_test, Y_hls)
+    
+    makeRoc(X_test, labels, Y_test, model, outdir,Y_hls,'_hls')
+    
+    y_test_proba = Y_hls.argmax(axis=1)
+    cnf_matrix = confusion_matrix(y_test_proba, y_predict_proba)
+    np.set_printoptions(precision=2)
+
+    plt.figure()
+    plot_confusion_matrix(cnf_matrix, classes=[l for l in labels],title='Confusion matrix')
+    plt.figtext(0.28, 0.90,'hls4ml',fontweight='bold', wrap=True, horizontalalignment='right', fontsize=14)
+    plt.figtext(0.75, 0.9,options.label, wrap=True, horizontalalignment='right', fontsize=12)
+    #plt.figtext(0.38, 0.90,'preliminary', style='italic', wrap=True, horizontalalignment='center', fontsize=14)
+    plt.savefig(outdir+"/confusion_matrix_hls.png")
+
+    plt.figure()
+    plot_confusion_matrix(cnf_matrix, classes=[l for l in labels], normalize=True,title='Normalized confusion matrix')
+    plt.figtext(0.28, 0.90,'hls4ml',fontweight='bold', wrap=True, horizontalalignment='right', fontsize=14)
+    plt.figtext(0.75, 0.9,options.label, wrap=True, horizontalalignment='right', fontsize=12)
+    #plt.figtext(0.38, 0.90,'preliminary', style='italic', wrap=True, horizontalalignment='center', fontsize=14)
+    plt.savefig(outdir+"/confusion_matrix_norm_hls.png")
 
 if os.path.isfile(outdir+'/full_info.log'):
         f = open(outdir+'/full_info.log')

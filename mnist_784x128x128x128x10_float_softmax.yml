@@ -1,0 +1,7 @@
+OutputDir: train_float_model_softmax
+KerasModel: float_model_softmax
+Neurons: 128
+Layers: 3
+KerasLoss: categorical_crossentropy
+L1Reg: 0
+Epochs: 100
