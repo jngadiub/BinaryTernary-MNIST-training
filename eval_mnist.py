@@ -24,7 +24,8 @@ from optparse import OptionParser
 from constraints import ZeroSomeWeights
 from sklearn.metrics import accuracy_score
 
-from mnist_mlp import relu1
+from mnist_mlp import parse_config,get_features
+from models import relu1
 
 def _byteify(data, ignore_dicts = False):
     # if this is a unicode string, return its string representation
@@ -119,13 +120,15 @@ def ternary_tanh(x):
     return ternarize(x)
 
 parser = OptionParser()
-parser.add_option('-o','--output',action='store',type='string',dest='outputDir',default='train_mnist/',help='output directory')
+parser.add_option('-c','--config'   ,action='store',type='string',dest='config'   ,default='mnist.yml', help='yaml config file')
 parser.add_option('-l','--label',action='store',type='string',dest='label',default='Binary MNIST-128',help='label for plots')
-parser.add_option('-c','--convert',action='store_true',dest='convert',default=False, help='convert data to txt')
+parser.add_option('-C','--convert',action='store_true',dest='convert',default=False, help='convert data to txt')
 parser.add_option('--checkHLS','--checkHLS',action='store',type='string',dest='checkHLS',default='', help='file with HLS output')
 (options,args) = parser.parse_args()
 
-outdir = options.outputDir
+yamlConfig = parse_config(options.config)
+
+outdir = yamlConfig['OutputDir']
 model_file = outdir+'/KERAS_check_best_model.h5'
 model = load_model(model_file, custom_objects={
                    'relu1': relu1,
@@ -139,22 +142,8 @@ model = load_model(model_file, custom_objects={
                    'ternary_tanh': binary_tanh,
                    'Clip': Clip})
 
-(X_train, y_train), (X_test, y_test) = mnist.load_data()
-
-X_train = X_train.reshape(60000, 784)
-X_test = X_test.reshape(10000, 784)
-X_train = X_train.astype('float32')
-X_test = X_test.astype('float32')
-X_train /= 255
-X_test /= 255
-print X_train.shape[0], 'train samples'
-print X_test.shape[0], 'test samples'
-
 nb_classes = 10
-
-# convert class vectors to binary class matrices
-Y_train = np_utils.to_categorical(y_train, nb_classes) * 2 - 1 # -1 or 1 for hinge loss
-Y_test = np_utils.to_categorical(y_test, nb_classes) * 2 - 1
+X_train, X_test, Y_train, Y_test  = get_features(yamlConfig,nb_classes)
 
 score = model.evaluate(X_test, Y_test, verbose=0)
 print 'Keras test score:', score[0]

@@ -67,12 +67,6 @@ def parse_config(config_file) :
 if __name__ == "__main__":
  parser = OptionParser()
  parser.add_option('-c','--config'   ,action='store',type='string',dest='config'   ,default='mnist.yml', help='yaml config file')
- #parser.add_option('-o','--output'   ,action='store',type='string',dest='outputDir'   ,default='train_mnist/', help='output directory')
- #parser.add_option('-p','--precision'   ,action='store',type='string',dest='precision'   ,default='binary', help='binary, ternary, or float')
- #parser.add_option('--relu','--relu'   ,action='store_true',dest='relu'   ,default=False, help='use relu')
- #parser.add_option('--L1Reg','--L1Reg'   ,action='store',type=float,dest='L1Reg',default=0., help='L1 regularization')
- #parser.add_option('--retrain','--retrain'   ,action='store',type='string',dest='retrain'   ,default='', help='h5 file with dropped weights')
- #parser.add_option('--lastModel','--lastModel'   ,action='store',type='string',dest='lastModel'   ,default='', help='pruned model')
  (options,args) = parser.parse_args()
 
  yamlConfig = parse_config(options.config)
