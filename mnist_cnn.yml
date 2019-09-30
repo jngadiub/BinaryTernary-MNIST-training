@@ -1,0 +1,8 @@
+OutputDir: train_float_cnn
+KerasModel: float_cnn_model
+Neurons: -1
+Layers: -1
+KerasLoss: categorical_crossentropy
+L1Reg: 0
+Epochs: 2
+DataFormat: channels_last

@@ -1,0 +1,8 @@
+OutputDir: train_float_cnn_hinge
+KerasModel: float_cnn_model_hinge
+Neurons: -1
+Layers: -1
+KerasLoss: squared_hinge
+L1Reg: 0
+Epochs: 2
+DataFormat: channels_last

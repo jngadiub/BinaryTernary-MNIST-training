@@ -10,6 +10,7 @@ np.random.seed(1337)  # for reproducibility
 import sys, os, yaml
 from optparse import OptionParser
 
+import keras
 import keras.backend as K
 from keras.datasets import mnist
 from keras.models import Sequential
@@ -30,8 +31,9 @@ def get_features(yamlConfig,nclasses):
     # the data, shuffled and split between train and test sets
     (X_train, y_train), (X_test, y_test) = mnist.load_data()
 
-    X_train = X_train.reshape(60000, 784)
-    X_test = X_test.reshape(10000, 784)
+    if not 'cnn' in yamlConfig['KerasModel']:
+     X_train = X_train.reshape(60000, 784)
+     X_test = X_test.reshape(10000, 784)
     X_train = X_train.astype('float32')
     X_test = X_test.astype('float32')
     X_train /= 255
@@ -47,6 +49,15 @@ def get_features(yamlConfig,nclasses):
         Y_train = np_utils.to_categorical(y_train, nclasses)
         Y_test = np_utils.to_categorical(y_test, nclasses)
 
+    if 'cnn' in yamlConfig['KerasModel']:
+     img_rows, img_cols = 28, 28
+     if yamlConfig['DataFormat'] == 'channels_first':
+        X_train = X_train.reshape(X_train.shape[0], 1, img_rows, img_cols)
+        X_test = X_test.reshape(X_test.shape[0], 1, img_rows, img_cols)
+     else:
+        X_train = X_train.reshape(X_train.shape[0], img_rows, img_cols, 1)
+        X_test = X_test.reshape(X_test.shape[0], img_rows, img_cols, 1)
+        
     return X_train,X_test,Y_train,Y_test
 
 def print_model_to_json(keras_model, outfile_name):
@@ -113,19 +124,26 @@ if __name__ == "__main__":
 
  X_train, X_test, Y_train, Y_test  = get_features(yamlConfig,nb_classes)
 
+ input_shape = X_train.shape[1:]
+ if 'cnn' in yamlConfig['KerasModel']:
+  img_rows, img_cols = 28, 28
+  if yamlConfig['DataFormat'] == 'channels_first': input_shape = (1, img_rows, img_cols)
+  else: input_shape = (img_rows, img_cols, 1)
+     
  try:
   print("RETRAIN:",yamlConfig['KerasModelRetrain'])
   model = getattr(models, yamlConfig['KerasModelRetrain'])
-  keras_model = model(Input(shape=X_train.shape[1:]),num_unit,num_hidden,nb_classes,drop_in,drop_hidden,epsilon,momentum,l1Reg=yamlConfig['L1Reg'],h5fName=yamlConfig['Constraints'])
+  keras_model = model(Input(shape=input_shape),num_unit,num_hidden,nb_classes,drop_in,drop_hidden,epsilon,momentum,l1Reg=yamlConfig['L1Reg'],h5fName=yamlConfig['Constraints'])
   keras_mode.load_weights(yamlConfig['Constraints'].replace('_drop_weights.h5','.h5'), by_name=True)
  except:
   model = getattr(models, yamlConfig['KerasModel'])
-  keras_model = model(Input(shape=X_train.shape[1:]),num_unit,num_hidden,nb_classes,drop_in,drop_hidden,epsilon,momentum,l1Reg=yamlConfig['L1Reg'])
+  keras_model = model(Input(shape=input_shape),num_unit,num_hidden,nb_classes,drop_in,drop_hidden,epsilon,momentum,l1Reg=yamlConfig['L1Reg'])
 
  keras_model.summary()
  print_model_to_json(keras_model,outdir + '/KERAS_model.json')
 
- opt = Adam(lr=lr_start)
+ if not 'cnn' in yamlConfig['KerasModel']: opt = Adam(lr=lr_start)
+ else: opt = keras.optimizers.Adadelta()
  keras_model.compile(loss=yamlConfig['KerasLoss'], optimizer=opt, metrics=['acc'])
 
  callbacks=all_callbacks(stop_patience=1000,
