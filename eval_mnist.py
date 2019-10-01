@@ -9,7 +9,7 @@ from keras.datasets import mnist
 from keras.utils import np_utils
 from keras.models import load_model
 
-from binary_layers import BinaryDense, Clip, DropoutNoScaleForBinary, DropoutNoScale
+from binary_layers import BinaryDense, Clip, DropoutNoScaleForBinary, DropoutNoScale, BinaryConv2D
 from binary_ops import binary_tanh as binary_tanh_op
 
 from ternary_layers import TernaryDense, DropoutNoScaleForTernary
@@ -136,11 +136,12 @@ model = load_model(model_file, custom_objects={
                    'DropoutNoScale':DropoutNoScale,
                    'DropoutNoScaleForBinary':DropoutNoScaleForBinary,
                    'DropoutNoScaleForTernary':DropoutNoScaleForTernary,
+                   'Clip': Clip,
                    'BinaryDense': BinaryDense,
                    'TernaryDense': TernaryDense,
+		   'BinaryConv2D': BinaryConv2D,
                    'binary_tanh': binary_tanh,
-                   'ternary_tanh': binary_tanh,
-                   'Clip': Clip})
+                   'ternary_tanh': ternary_tanh})
 
 nb_classes = 10
 X_train, X_test, Y_train, Y_test  = get_features(yamlConfig,nb_classes)
@@ -164,11 +165,16 @@ if options.convert:
  outfile.close()
 
  outfile_name = model_file.replace('.h5','_input_features.dat')
- print "Writing",X_test.shape[1],"input features for",X_test.shape[0],"events in outfile",outfile_name
+ if not 'cnn' in yamlConfig['KerasModel']: print "Writing",X_test.shape[1],"input features for",X_test.shape[0],"events in outfile",outfile_name
+ else: print "Writing",X_test.shape[1]*X_test.shape[2]*X_test.shape[3],"input features for",X_test.shape[0],"events in outfile",outfile_name
  outfile = open(outfile_name,'w')
  for e in range(X_test.shape[0]):
   line=''
-  for l in range(X_test.shape[1]): line+=(str(X_test[e][l])+' ')
+  for w in range(X_test.shape[1]):
+   if 'cnn' in yamlConfig['KerasModel']:
+    for h in range(X_test.shape[2]):
+     for c in range(X_test.shape[3]): line+=(str(X_test[e][w][h][c])+' ')
+   else: line+=(str(X_test[e][w])+' ')
   outfile.write(line+'\n')
  outfile.close()
 
