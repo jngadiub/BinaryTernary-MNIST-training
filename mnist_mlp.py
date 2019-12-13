@@ -105,8 +105,8 @@ if __name__ == "__main__":
  kernel_lr_multiplier = 1.0
 
  # network
- num_unit = 128
- num_hidden = 3
+ num_unit = yamlConfig['Neurons']
+ num_hidden = yamlConfig['Layers']
  use_bias = False
 
  # learning rate schedule
