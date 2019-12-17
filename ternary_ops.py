@@ -19,8 +19,8 @@ def _ternarize(W, H=1):
     - [Recurrent Neural Networks with Limited Numerical Precision](http://arxiv.org/abs/1608.06902)
     - [Ternary Weight Networks](http://arxiv.org/abs/1605.04711)
     '''
-    W /= H
-
+    #W /= H
+    W = W/H
     ones = K.ones_like(W)
     zeros = K.zeros_like(W)
     Wt = switch(W > 0.5, ones, switch(W <= -0.5, -ones, zeros))
