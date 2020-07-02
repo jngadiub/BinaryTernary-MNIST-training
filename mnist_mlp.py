@@ -84,7 +84,7 @@ if __name__ == "__main__":
  
  outdir = yamlConfig['OutputDir']
  if not os.path.exists(outdir): os.system('mkdir '+outdir)
- else: raw_input("Warning: output directory exists. Press Enter to continue...")
+ else: input("Warning: output directory exists. Press Enter to continue...")
  
  print("OUTDIR:",outdir)
  print("MODEL:",yamlConfig['KerasModel'])
@@ -105,7 +105,7 @@ if __name__ == "__main__":
  kernel_lr_multiplier = 1.0
 
  # network
- num_unit = 128
+ num_unit = yamlConfig['Neurons']
  num_hidden = 3
  use_bias = False
 

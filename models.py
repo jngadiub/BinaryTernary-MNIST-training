@@ -22,8 +22,8 @@ def float_model_softmax(Inputs,num_unit,num_hidden,nclasses,drop_in,drop_hidden,
  print("CREATING FLOAT MNIST MODEL WITH",num_unit,"NEURONS AND",num_hidden,"LAYERS")
  
  if l1Reg!=0: x = Dropout(drop_in, name='drop0')(Inputs)
- else: x = Dense(num_unit,name='dense0',W_regularizer=l1(l1Reg))(Inputs)
- for i in range(num_hidden):
+ else: x = Dense(num_unit,name='dense1',W_regularizer=l1(l1Reg))(Inputs)
+ for i in range(1,num_hidden):
    x = Dense(num_unit,activation='relu',name='dense{}'.format(i+1),W_regularizer=l1(l1Reg))(x)
    if l1Reg!=0: x = Dropout(drop_hidden, name='drop{}'.format(i+1))(x)
  predictions = Dense(nclasses, activation='softmax',name='dense')(x)
@@ -76,9 +76,9 @@ def float_model_hinge(Inputs,num_unit,num_hidden,nclasses,drop_in,drop_hidden,ep
  print("CREATING FLOAT MNIST MODEL WITH",num_unit,"NEURONS AND",num_hidden,"LAYERS")
 
  if l1Reg!=0: x = Dropout(drop_in, name='drop0')(Inputs)
- else: x = Dense(num_unit,name='dense0',W_regularizer=l1(l1Reg))(Inputs)
- for i in range(num_hidden):
-   x = Dense(num_unit,activation='relu',name='dense{}'.format(i+1),W_regularizer=l1(l1Reg))(x)
+ else: x = Dense(num_unit,name='dense1',activation='relu')(Inputs)
+ for i in range(1,num_hidden):
+   x = Dense(num_unit,activation='relu',name='dense{}'.format(i+1))(x)
    if l1Reg!=0: x = Dropout(drop_hidden, name='drop{}'.format(i+1))(x)
  x = Dense(nclasses, name='dense')(x)
  predictions = BatchNormalization(epsilon=epsilon, momentum=momentum, name='bn')(x)
@@ -257,29 +257,59 @@ def binary_cnn_model(Inputs,num_unit,num_hidden,nclasses,drop_in,drop_hidden,eps
  print("CREATING BINARY MNIST MODEL WITH CNN AND HINGE LOSS")
 
  #conv1
- x = BinaryConv2D(128, kernel_size=(3, 3),
+ x = BinaryConv2D(8, kernel_size=(3, 3),
                        data_format='channels_first',
                        H=1.0, kernel_lr_multiplier=1.0,
                        padding='same', use_bias=False, name='conv1')(Inputs)
  x = BatchNormalization(epsilon=epsilon, momentum=momentum, axis=1, name='bn1')(x)
  x = Activation(binary_tanh, name='act1')(x)
  #conv2
- x = BinaryConv2D(128, kernel_size=(3, 3), H=1.0, kernel_lr_multiplier=1.0,
+ x = BinaryConv2D(16, kernel_size=(3, 3), H=1.0, kernel_lr_multiplier=1.0,
                        data_format='channels_first',
                        padding='same', use_bias=False, name='conv2')(x)
  x = MaxPooling2D(pool_size=(2, 2), name='pool2', data_format='channels_first')(x)
  x = BatchNormalization(epsilon=epsilon, momentum=momentum, axis=1, name='bn2')(x)
  x = Activation(binary_tanh, name='act2')(x)
+ x = Flatten()(x)
+ # dense1
+ x = BinaryDense(128, H=1.0, kernel_lr_multiplier=1.0, use_bias=False, name='dense3')(x)
+ x = BatchNormalization(epsilon=epsilon, momentum=momentum, name='bn3')(x)
+ x = Activation(binary_tanh, name='act3')(x)
+ # dense2
+ x = BinaryDense(nclasses, H=1.0, kernel_lr_multiplier=1.0, use_bias=False, name='dense4')(x)
+ predictions = BatchNormalization(epsilon=epsilon, momentum=momentum, name='bn4')(x)
+ model = Model(inputs=Inputs, outputs=predictions)
+ return model
+
+'''
+def binary_cnn_model(Inputs,num_unit,num_hidden,nclasses,drop_in,drop_hidden,epsilon,momentum,l1Reg=0):
+
+ print("CREATING BINARY MNIST MODEL WITH CNN AND HINGE LOSS")
+
+ #conv1
+ x = BinaryConv2D(128, kernel_size=(3, 3),
+                      data_format='channels_first',
+                      H=1.0, kernel_lr_multiplier=1.0,
+                      padding='same', use_bias=False, name='conv1')(Inputs)
+ x = BatchNormalization(epsilon=epsilon, momentum=momentum, axis=1, name='bn1')(x)
+ x = Activation(binary_tanh, name='act1')(x)
+ #conv2
+ x = BinaryConv2D(128, kernel_size=(3, 3), H=1.0, kernel_lr_multiplier=1.0,
+                      data_format='channels_first',
+                      padding='same', use_bias=False, name='conv2')(x)
+ x = MaxPooling2D(pool_size=(2, 2), name='pool2', data_format='channels_first')(x)
+ x = BatchNormalization(epsilon=epsilon, momentum=momentum, axis=1, name='bn2')(x)
+ x = Activation(binary_tanh, name='act2')(x)
  # conv3
  x = BinaryConv2D(256, kernel_size=(3,3), H=1.0, kernel_lr_multiplier=1.0,
-                       data_format='channels_first',
-                       padding='same', use_bias=False, name='conv3')(x)
+                      data_format='channels_first',
+                      padding='same', use_bias=False, name='conv3')(x)
  x = BatchNormalization(epsilon=epsilon, momentum=momentum, axis=1, name='bn3')(x)
  x = Activation(binary_tanh, name='act3')(x)
  # conv4
  x = BinaryConv2D(256, kernel_size=(3,3), H=1.0, kernel_lr_multiplier=1.0,
-                       data_format='channels_first',
-                       padding='same', use_bias=False, name='conv4')(x)
+                      data_format='channels_first',
+                      padding='same', use_bias=False, name='conv4')(x)
  x = MaxPooling2D(pool_size=(2,2), name='pool4', data_format='channels_first')(x)
  x = BatchNormalization(epsilon=epsilon, momentum=momentum, axis=1, name='bn4')(x)
  x = Activation(binary_tanh, name='act4')(x)
@@ -293,3 +323,4 @@ def binary_cnn_model(Inputs,num_unit,num_hidden,nclasses,drop_in,drop_hidden,eps
  predictions = BatchNormalization(epsilon=epsilon, momentum=momentum, name='bn6')(x)
  model = Model(inputs=Inputs, outputs=predictions)
  return model
+'''
