@@ -106,7 +106,7 @@ if __name__ == "__main__":
 
  # network
  num_unit = yamlConfig['Neurons']
- num_hidden = 3
+ num_hidden = yamlConfig['Layers']
  use_bias = False
 
  # learning rate schedule

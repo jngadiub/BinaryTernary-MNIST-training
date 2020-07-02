@@ -4,5 +4,5 @@ Neurons: -1
 Layers: -1
 KerasLoss: squared_hinge
 L1Reg: 0
-Epochs: 2
+Epochs: 50
 DataFormat: channels_last
